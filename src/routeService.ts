@@ -63,12 +63,14 @@ class RouteService {
     }
 
     let nearest = data[0];
-    let minDiff =
-      Math.abs(lat - nearest.latitude) + Math.abs(lon - nearest.longitude);
+    let minDiff = Math.sqrt(
+      Math.pow(lat - nearest.latitude, 2) + Math.pow(lon - nearest.longitude, 2)
+    );
 
     for (let i = 1; i < data.length; i++) {
-      const diff =
-        Math.abs(lat - data[i].latitude) + Math.abs(lon - data[i].longitude);
+      const diff = Math.sqrt(
+        Math.pow(lat - data[i].latitude, 2) + Math.pow(lon - data[i].longitude, 2)
+      );
       if (diff < minDiff) {
         nearest = data[i];
         minDiff = diff;
@@ -150,26 +152,26 @@ class RouteService {
   async findShortestPathHandler(req: Request, res: Response): Promise<void> {
     const startId: number = parseInt(req.query.start as string);
     const endId: number = parseInt(req.query.end as string);
-  
+
     if (isNaN(startId) || isNaN(endId)) {
       res.status(400).json({ error: "Invalid start/end node IDs" });
       return;
     }
-  
+
     try {
       const vertices: Vertex[] = await this.getAllVertices();
       const startNode: Vertex | undefined = vertices.find((v: Vertex) => v.id === startId);
       const endNode: Vertex | undefined = vertices.find((v: Vertex) => v.id === endId);
-  
+
       if (!startNode || !endNode) {
         res.status(404).json({ error: "Start or end node not found" });
         return;
       }
-  
+
       const edges: Edge[] = await this.getAllEdges();
       const adjList: Map<number, { node: Vertex; weight: number }[]> =
         this.buildAdjacencyList(vertices, edges);
-  
+
       const path: Vertex[] = this.findShortestPath(startNode, endNode, adjList);
       res.json(path);
     } catch (err) {
