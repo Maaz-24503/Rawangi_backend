@@ -15,9 +15,16 @@ app.get("/nearest", async (req: Request, res: Response) => {
   await routeService.findNearestNodeHandler(req, res);
 });
 
-app.get("/shortest-path", async (req: Request, res: Response) => {
-  await routeService.findShortestPathHandler(req, res);
+// app.get("/shortest-path", async (req: Request, res: Response) => {
+//   await routeService.findShortestPathHandler(req, res);
+// });
+
+app.get("/shortest-path-pruning", async (req: Request, res: Response) => {
+  await routeService.findShortestPathHandlerWithPruning(req, res);
 });
+
+// async findShortestPathHandlerWithPruning(req: Request, res: Response): Promise < void> {
+
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {

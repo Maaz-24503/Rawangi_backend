@@ -9,46 +9,52 @@ export type Json =
 export interface Database {
   public: {
     Tables: {
-      vertices: {
+      routing_vertices: {
         Row: {
           id: number;
           latitude: number;
           longitude: number;
-          data: Json | null;
+          geom: unknown; // GEOMETRY(Point, 4326) - typically stored as unknown or string
         };
         Insert: {
           id: number;
           latitude: number;
           longitude: number;
-          data?: Json | null;
+          geom: unknown; // adjust if you're serializing geometry
+        };
+        Update: {
+          latitude?: number;
+          longitude?: number;
+          geom?: unknown;
         };
       };
-      edges: {
+      routing_edges: {
         Row: {
           id: number;
           source: number;
           target: number;
-          weight: number;
-          isPedestrian: boolean;
-          data: Json | null;
+          cost: number;
+          reverse_cost: number;
+          geom: unknown; // GEOMETRY(LineString, 4326)
         };
         Insert: {
           source: number;
           target: number;
-          weight: number;
-          isPedestrian: boolean;
-          data?: Json | null;
+          cost: number;
+          reverse_cost: number;
+          geom: unknown;
         };
         Update: {
           source?: number;
           target?: number;
-          weight?: number;
-          isPedestrian?: boolean;
-          data?: Json | null;
+          cost?: number;
+          reverse_cost?: number;
+          geom?: unknown;
         };
       };
     };
   };
 }
-export type Vertex = Database['public']['Tables']['vertices']['Row'];
-export type Edge = Database['public']['Tables']['edges']['Row'];
+
+export type Vertex = Database['public']['Tables']['routing_vertices']['Row'];
+export type Edge = Database['public']['Tables']['routing_edges']['Row'];

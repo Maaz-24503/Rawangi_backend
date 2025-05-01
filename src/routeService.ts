@@ -3,81 +3,23 @@ import { Request, Response } from "express";
 import { Vertex, Edge } from "./database.js";
 
 class RouteService {
-  private async getAllVertices(): Promise<Vertex[]> {
-    const { data, error } = await supabase.from("vertices").select("*");
-
-    if (error) {
-      console.error("Error fetching vertices:", error);
-      throw error;
-    }
-
-    return data as Vertex[];
-  }
-
-  private async getAllEdges(): Promise<Edge[]> {
-    const { data, error } = await supabase.from("edges").select("*");
-
-    if (error) {
-      console.error("Error fetching edges:", error);
-      throw error;
-    }
-
-    return data as Edge[];
-  }
-
-  private manhattanDistance(a: Vertex, b: Vertex): number {
-    return (
-      Math.abs(a.latitude - b.latitude) + Math.abs(a.longitude - b.longitude)
-    );
-  }
-
-  private buildAdjacencyList(
-    vertices: Vertex[],
-    edges: Edge[]
-  ): Map<number, { node: Vertex; weight: number }[]> {
-    const vertexMap = new Map(vertices.map((v) => [v.id, v]));
-    const adjList = new Map<number, { node: Vertex; weight: number }[]>();
-
-    for (const vertex of vertices) {
-      adjList.set(vertex.id, []);
-    }
-
-    for (const edge of edges) {
-      const sourceNode = vertexMap.get(edge.source);
-      const targetNode = vertexMap.get(edge.target);
-      if (sourceNode && targetNode) {
-        adjList
-          .get(edge.source)
-          ?.push({ node: targetNode, weight: edge.weight });
-      }
-    }
-
-    return adjList;
-  }
 
   async findNearestNode(lat: number, lon: number): Promise<Vertex> {
-    const data = await this.getAllVertices();
+    const { data, error } = await supabase.rpc("find_nearest_vertex", {
+      target_lat: lat,
+      target_lon: lon
+    });
+
+    if (error) {
+      console.error("Error calling find_nearest_vertex RPC:", error);
+      throw error;
+    }
 
     if (!data || data.length === 0) {
-      throw new Error("No vertices found in database");
+      throw new Error("No nearest vertex found");
     }
 
-    let nearest = data[0];
-    let minDiff = Math.sqrt(
-      Math.pow(lat - nearest.latitude, 2) + Math.pow(lon - nearest.longitude, 2)
-    );
-
-    for (let i = 1; i < data.length; i++) {
-      const diff = Math.sqrt(
-        Math.pow(lat - data[i].latitude, 2) + Math.pow(lon - data[i].longitude, 2)
-      );
-      if (diff < minDiff) {
-        nearest = data[i];
-        minDiff = diff;
-      }
-    }
-
-    return nearest;
+    return data[0] as Vertex;
   }
 
   async findNearestNodeHandler(req: Request, res: Response): Promise<Response> {
@@ -97,59 +39,9 @@ class RouteService {
     }
   }
 
-  private findShortestPath(
-    start: Vertex,
-    end: Vertex,
-    adjList: Map<number, { node: Vertex; weight: number }[]>
-  ): Vertex[] {
-    const openSet = new Set<number>([start.id]);
-    const cameFrom = new Map<number, number>();
-    const gScore = new Map<number, number>();
-    const fScore = new Map<number, number>();
 
-    gScore.set(start.id, 0);
-    fScore.set(start.id, this.manhattanDistance(start, end));
-
-    while (openSet.size > 0) {
-      let currentId = [...openSet].reduce((a, b) =>
-        (fScore.get(a) ?? Infinity) < (fScore.get(b) ?? Infinity) ? a : b
-      );
-
-      if (currentId === end.id) {
-        const path: Vertex[] = [];
-        let currId: number | undefined = currentId;
-        while (currId !== undefined) {
-          const currNode = [...adjList.keys()].find((id) => id === currId);
-          if (currNode !== undefined)
-            path.unshift(adjList.get(currNode)![0].node);
-          currId = cameFrom.get(currId);
-        }
-        path.unshift(start);
-        return path;
-      }
-
-      openSet.delete(currentId);
-
-      for (const neighbor of adjList.get(currentId) ?? []) {
-        const tentativeG =
-          (gScore.get(currentId) ?? Infinity) + neighbor.weight;
-
-        if (tentativeG < (gScore.get(neighbor.node.id) ?? Infinity)) {
-          cameFrom.set(neighbor.node.id, currentId);
-          gScore.set(neighbor.node.id, tentativeG);
-          fScore.set(
-            neighbor.node.id,
-            tentativeG + this.manhattanDistance(neighbor.node, end)
-          );
-          openSet.add(neighbor.node.id);
-        }
-      }
-    }
-
-    return [];
-  }
-
-  async findShortestPathHandler(req: Request, res: Response): Promise<void> {
+  // Updated findShortestPathHandler to use the pruned graph
+  async findShortestPathHandlerWithPruning(req: Request, res: Response): Promise<Response | void> {
     const startId: number = parseInt(req.query.start as string);
     const endId: number = parseInt(req.query.end as string);
 
@@ -159,26 +51,26 @@ class RouteService {
     }
 
     try {
-      const vertices: Vertex[] = await this.getAllVertices();
-      const startNode: Vertex | undefined = vertices.find((v: Vertex) => v.id === startId);
-      const endNode: Vertex | undefined = vertices.find((v: Vertex) => v.id === endId);
-
-      if (!startNode || !endNode) {
-        res.status(404).json({ error: "Start or end node not found" });
-        return;
+      const { data, error } = await supabase.rpc('shortest_path', {
+        start_vertex_id: startId,
+        end_vertex_id: endId
+      });
+      if (error) {
+        return res.status(400).json(error)
+      }
+      else {
+        return res.status(200).json(data)
       }
 
-      const edges: Edge[] = await this.getAllEdges();
-      const adjList: Map<number, { node: Vertex; weight: number }[]> =
-        this.buildAdjacencyList(vertices, edges);
 
-      const path: Vertex[] = this.findShortestPath(startNode, endNode, adjList);
-      res.json(path);
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: "Internal server error" });
     }
   }
+
+
+
 }
 
 export default new RouteService();
