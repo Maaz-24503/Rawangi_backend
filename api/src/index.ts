@@ -12,6 +12,12 @@ app.use(
   })
 );
 
+
+app.get("/", async (req: Request, res: Response) => {
+  res.status(200).send("Hello World!");
+});
+
+
 app.get("/nearest", async (req: Request, res: Response) => {
   await routeService.findNearestNodeHandler(req, res);
 });
