@@ -87,6 +87,7 @@ class RouteService {
   }
 
   async insertBusRoute(req: Request, res: Response): Promise<Response> {
+    console.log('req', req.body)
     const { vertices, weights, geometry, description } = req.body as {
       vertices: Vertex[];
       weights: number[];

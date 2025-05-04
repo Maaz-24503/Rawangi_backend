@@ -2,15 +2,37 @@ import express, { Request, Response } from "express";
 import dotenv from "dotenv";
 import routeService from "./routeService.js";
 import cors from "cors";
+import morgan from "morgan";
 
 dotenv.config();
 const app = express();
+
+app.use(morgan("dev"));
+
 
 app.use(
   cors({
     origin: "http://localhost:3000",
   })
 );
+// app.use(
+
+//   cors({
+//     origin: "https://desired-albacore-commonly.ngrok-free.app",
+//     credentials: true, // only needed if you are sending cookies or HTTP auth
+//   })
+// );
+
+// app.use(
+//   cors({
+//     origin: "https://desired-albacore-commonly.ngrok-free.app",
+//     methods: ["GET", "POST", "DELETE", "OPTIONS"],
+//     allowedHeaders: ["Content-Type"],
+//     credentials: true,
+//   })
+// );
+
+app.use(express.json())
 
 
 app.get("/", async (req: Request, res: Response) => {
@@ -32,6 +54,7 @@ app.get("/shortest-path-pruning", async (req: Request, res: Response) => {
 
 app.post("/create-bus-route", async (req: Request, res: Response) => {
   await routeService.insertBusRoute(req, res);
+  console.log("Route added successfully");
 });
 
 app.delete("/delete-bus-route", async (req: Request, res: Response) => {
@@ -49,4 +72,5 @@ app.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}`);
 });
 
-module.exports = app;
+
+export default app;
